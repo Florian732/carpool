@@ -308,7 +308,12 @@ else:
 # ---- 7) Alles löschen ----
 st.markdown("---")
 st.subheader("⚠️ Alle Daten löschen")
-if st.button("🧹 Alles löschen (Personen & Gruppen)"):
-    clear_data()
-    st.session_state.clear()
-    st.success("Alle Daten wurden gelöscht ✅")
+
+# Nur Admin darf alles löschen
+if st.session_state.get("user") == "Admin":
+    if st.button("🧹 Alles löschen (Personen & Gruppen)"):
+        clear_data()
+        st.session_state.clear()
+        st.success("Alle Daten wurden gelöscht ✅")
+else:
+    st.info("Nur der Admin kann alle Daten löschen.")
