@@ -142,8 +142,12 @@ if username and st.button("✅ Mich eintragen"):
         st.session_state["last_click"] = None
         st.success("Dein Eintrag wurde gespeichert ✅")
 
-# ---- Personenübersicht ----
-personen = supabase.table("personen").select("*").execute().data
+# ---- 4) Personenübersicht ----
+def reload_personen():
+    return supabase.table("personen").select("*").execute().data
+
+personen = reload_personen()
+st.subheader("👥 Eingetragene Teilnehmer")
 
 for p in personen:
     role_icon = "🚗" if "Fahrer" in p["role"] else "🧍"
@@ -163,14 +167,13 @@ for p in personen:
             unsafe_allow_html=True
         )
     with col2:
-        # Nur eigener Benutzer kann löschen
         if username == p["name"]:
             if st.button("🗑️ Löschen", key=f"del_{p['name']}"):
                 supabase.table("personen").delete().eq("name", username).execute()
-                st.experimental_rerun()
+                st.success("Dein Eintrag wurde gelöscht ✅")
+                personen = reload_personen()  # sofort neu laden
 
-
-# ---- 4) Gruppenverwaltung ----
+# ---- 5) Gruppenverwaltung ----
 st.subheader("👥 Gruppenverwaltung")
 if username:
     for g in gruppen:
@@ -219,7 +222,7 @@ if username:
             else:
                 st.warning("Ungültiger Name oder Gruppe existiert bereits.")
 
-# ---- 5) Admin: Alles löschen ----
+# ---- 6) Admin: Alles löschen ----
 st.subheader("⚠️ Alle Daten löschen")
 if username == "Admin" and supabase_admin:
     if st.button("🧹 Alles löschen (Personen & Gruppen)"):
