@@ -167,14 +167,44 @@ for p in st.session_state["personen"]:
                 load_data()
                 st.success("Eintrag gelöscht ✅")  # sofort sichtbar, ohne rerun
 
+# ---- Personenübersicht ----
+st.subheader("👥 Übersicht Teilnehmer")
+if username:
+    personen_copy = st.session_state["personen"].copy()
+    for p in personen_copy:
+        role_icon = "🚗" if "Fahrer" in p["role"] else "🧍"
+        color_bg = "#d1f0ff" if "Fahrer" in p["role"] else "#f2f2f2"
+        freie_text = f"<br>Freie Plätze: {p['freie_plaetze']}" if "Fahrer" in p["role"] else ""
+
+        col1, col2 = st.columns([4, 1])
+        with col1:
+            st.markdown(
+                f"""
+                <div style='background-color:{color_bg}; padding:10px; border-radius:8px; margin-bottom:6px;'>
+                  <b>{role_icon} {p['name']}</b><br>
+                  <small>{p['role']}</small><br>
+                  {freie_text}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        with col2:
+            if username == p["name"]:
+                if st.button("🗑️ Löschen", key=f"del_{p['name']}"):
+                    supabase.table("personen").delete().eq("name", username).execute()
+                    # Session-State aktualisieren
+                    st.session_state["personen"] = [x for x in st.session_state["personen"] if x["name"] != username]
+                    break  # Schleife abbrechen, nächste Ausführung zeigt aktuelle Liste
+
 # ---- Gruppenverwaltung ----
 st.subheader("👥 Gruppenverwaltung")
 if username:
-    for g in st.session_state["gruppen"]:
+    gruppen_copy = st.session_state["gruppen"].copy()
+    for g in gruppen_copy:
         members = g.get("mitglieder", [])
         color = g.get("color", "#cccccc")
-        
-        # Berechne freie Plätze in der Gruppe
+
+        # Freie Plätze berechnen
         freie_plaetze = sum(
             p["freie_plaetze"]
             for p in st.session_state["personen"]
@@ -183,7 +213,6 @@ if username:
         freie_text = f" – Freie Plätze: {freie_plaetze}" if freie_plaetze else ""
 
         cols = st.columns([6, 1, 1])
-
         with cols[0]:
             st.markdown(
                 f"<div style='background-color:{color}; padding:8px; border-radius:6px; margin-bottom:4px;'>"
@@ -196,23 +225,24 @@ if username:
                 if st.button(f"🚪 Verlassen", key=f"leave_{g['name']}"):
                     members.remove(username)
                     supabase.table("gruppen").update({"mitglieder": members}).eq("name", g["name"]).execute()
-                    # Direkt Session-State updaten
                     g["mitglieder"] = members
-                    st.success(f"Du hast die Gruppe {g['name']} verlassen.")
+                    # Session-State direkt aktualisieren
+                    st.session_state["gruppen"] = [x if x["name"] != g["name"] else g for x in st.session_state["gruppen"]]
+                    break
             else:
                 if st.button(f"➕ Beitreten", key=f"join_{g['name']}"):
                     members.append(username)
                     supabase.table("gruppen").update({"mitglieder": members}).eq("name", g["name"]).execute()
                     g["mitglieder"] = members
-                    st.success(f"Du bist jetzt Mitglied von {g['name']}.")
+                    st.session_state["gruppen"] = [x if x["name"] != g["name"] else g for x in st.session_state["gruppen"]]
+                    break
 
         with cols[2]:
             if g.get("owner") == username:
                 if st.button(f"❌ Löschen", key=f"delgroup_{g['name']}"):
                     supabase.table("gruppen").delete().eq("name", g["name"]).execute()
-                    # Session-State löschen
                     st.session_state["gruppen"] = [x for x in st.session_state["gruppen"] if x["name"] != g["name"]]
-                    st.success(f"Gruppe {g['name']} gelöscht.")
+                    break
 
     # Neue Gruppe erstellen
     with st.form("create_group_form"):
@@ -227,7 +257,6 @@ if username:
                     "color": random_color()
                 }
                 supabase.table("gruppen").insert(new_group).execute()
-                # Direkt Session-State updaten
                 st.session_state["gruppen"].append(new_group)
                 st.success(f"Gruppe '{new_name}' erstellt ✅")
             else:
