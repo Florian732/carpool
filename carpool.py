@@ -173,12 +173,21 @@ if username:
     for g in st.session_state["gruppen"]:
         members = g.get("mitglieder", [])
         color = g.get("color", "#cccccc")
+        
+        # Berechne freie Plätze in der Gruppe
+        freie_plaetze = sum(
+            p["freie_plaetze"]
+            for p in st.session_state["personen"]
+            if p["name"] in members and "Fahrer" in p["role"]
+        )
+        freie_text = f" – Freie Plätze: {freie_plaetze}" if freie_plaetze else ""
+
         cols = st.columns([6, 1, 1])
 
         with cols[0]:
             st.markdown(
                 f"<div style='background-color:{color}; padding:8px; border-radius:6px; margin-bottom:4px;'>"
-                f"<b>{g['name']}</b> – Mitglieder: {', '.join(members)}</div>",
+                f"<b>{g['name']}</b> – Mitglieder: {', '.join(members)}{freie_text}</div>",
                 unsafe_allow_html=True
             )
 
@@ -203,23 +212,6 @@ if username:
                     load_data()
                     st.success(f"Gruppe {g['name']} gelöscht.")
 
-    # Neue Gruppe erstellen
-    with st.form("create_group_form"):
-        new_name = st.text_input("Name der neuen Gruppe", placeholder="z. B. Team Hamburg")
-        submitted = st.form_submit_button("🌈 Gruppe erstellen")
-        if submitted:
-            if new_name.strip() and all(g["name"] != new_name for g in st.session_state["gruppen"]):
-                new_group = {
-                    "name": new_name.strip(),
-                    "owner": username,
-                    "mitglieder": [username],
-                    "color": random_color()
-                }
-                supabase.table("gruppen").insert(new_group).execute()
-                load_data()
-                st.success(f"Gruppe '{new_name}' erstellt ✅")
-            else:
-                st.warning("Ungültiger Name oder Gruppe existiert bereits.")
 
 # ---- Admin: Alles löschen ----
 st.subheader("⚠️ Alle Daten löschen")
