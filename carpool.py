@@ -37,7 +37,7 @@ else:
 
 username = st.session_state.get("user")
 
-# ---- Farben für Gruppen ----
+# ---- Farben ----
 PALETTE = ["#FF0000","#0077FF","#00CC44","#FF9900","#9933FF",
            "#00CED1","#FF1493","#8B4513","#FFD700","#008B8B"]
 def random_color():
@@ -165,7 +165,7 @@ for p in st.session_state["personen"]:
             if st.button("🗑️ Löschen", key=f"del_{p['name']}"):
                 supabase.table("personen").delete().eq("name", username).execute()
                 load_data()
-                st.experimental_rerun()  # Seite aktualisiert sofort
+                st.success("Eintrag gelöscht ✅")  # sofort sichtbar, ohne rerun
 
 # ---- Gruppenverwaltung ----
 st.subheader("👥 Gruppenverwaltung")
@@ -188,20 +188,20 @@ if username:
                     members.remove(username)
                     supabase.table("gruppen").update({"mitglieder": members}).eq("name", g["name"]).execute()
                     load_data()
-                    st.experimental_rerun()
+                    st.success(f"Du hast die Gruppe {g['name']} verlassen.")
             else:
                 if st.button(f"➕ Beitreten", key=f"join_{g['name']}"):
                     members.append(username)
                     supabase.table("gruppen").update({"mitglieder": members}).eq("name", g["name"]).execute()
                     load_data()
-                    st.experimental_rerun()
+                    st.success(f"Du bist jetzt Mitglied von {g['name']}.")
 
         with cols[2]:
             if g.get("owner") == username:
                 if st.button(f"❌ Löschen", key=f"delgroup_{g['name']}"):
                     supabase.table("gruppen").delete().eq("name", g["name"]).execute()
                     load_data()
-                    st.experimental_rerun()
+                    st.success(f"Gruppe {g['name']} gelöscht.")
 
     # Neue Gruppe erstellen
     with st.form("create_group_form"):
@@ -217,7 +217,7 @@ if username:
                 }
                 supabase.table("gruppen").insert(new_group).execute()
                 load_data()
-                st.experimental_rerun()
+                st.success(f"Gruppe '{new_name}' erstellt ✅")
             else:
                 st.warning("Ungültiger Name oder Gruppe existiert bereits.")
 
