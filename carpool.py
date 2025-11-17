@@ -14,7 +14,6 @@ url = st.secrets["supabase"]["url"]
 key = st.secrets["supabase"]["key"]
 supabase: Client = create_client(url, key)
 
-# Optional: Admin / service_role Key
 service_key = st.secrets.get("supabase_admin", {}).get("service_role_key")
 supabase_admin: Client = create_client(url, service_key) if service_key else None
 
@@ -44,23 +43,16 @@ PALETTE = ["#FF0000","#0077FF","#00CC44","#FF9900","#9933FF",
 def random_color():
     return random.choice(PALETTE)
 
-# ---- 0) Supabase-Daten in session_state ----
+# ---- Session-State für Personen/Gruppen laden ----
 if "personen" not in st.session_state:
     st.session_state["personen"] = supabase.table("personen").select("*").execute().data
 if "gruppen" not in st.session_state:
     st.session_state["gruppen"] = supabase.table("gruppen").select("*").execute().data
 
-def reload_personen():
-    st.session_state["personen"] = supabase.table("personen").select("*").execute().data
-
-def reload_gruppen():
-    st.session_state["gruppen"] = supabase.table("gruppen").select("*").execute().data
-
 # ---- 1) Teilnahmeformular ----
 st.subheader("👤 Deine Teilnahme")
 if username:
-    existing_person = [p for p in st.session_state["personen"] if p["name"] == username]
-    existing_person = existing_person[0] if existing_person else None
+    existing_person = next((p for p in st.session_state["personen"] if p["name"] == username), None)
     role_default = existing_person["role"] if existing_person else "Mitfahrer (suche Platz)"
     
     role = st.radio(
@@ -148,7 +140,8 @@ if username and st.button("✅ Mich eintragen"):
             "lon": lon,
             "freie_plaetze": freie_plaetze
         }).execute()
-        reload_personen()
+        # Sofort Session-State aktualisieren
+        st.session_state["personen"] = supabase.table("personen").select("*").execute().data
         st.session_state["last_click"] = None
         st.success("Dein Eintrag wurde gespeichert ✅")
 
@@ -175,10 +168,9 @@ for p in st.session_state["personen"]:
         if username == p["name"]:
             if st.button("🗑️ Löschen", key=f"del_{p['name']}"):
                 supabase.table("personen").delete().eq("name", username).execute()
-                reload_personen()
-                st.experimental_rerun()
+                st.session_state["personen"] = supabase.table("personen").select("*").execute().data
 
-# ---- Gruppenverwaltung ----
+# ---- 4) Gruppenverwaltung ----
 st.subheader("👥 Gruppenverwaltung")
 if username:
     for g in st.session_state["gruppen"]:
@@ -198,21 +190,21 @@ if username:
                 if st.button(f"🚪 Verlassen", key=f"leave_{g['name']}"):
                     members.remove(username)
                     supabase.table("gruppen").update({"mitglieder": members}).eq("name", g["name"]).execute()
-                    reload_gruppen()
-                    st.experimental_rerun()
+                    st.session_state["gruppen"] = supabase.table("gruppen").select("*").execute().data
+                    st.success(f"Du hast die Gruppe {g['name']} verlassen.")
             else:
                 if st.button(f"➕ Beitreten", key=f"join_{g['name']}"):
                     members.append(username)
                     supabase.table("gruppen").update({"mitglieder": members}).eq("name", g["name"]).execute()
-                    reload_gruppen()
-                    st.experimental_rerun()
+                    st.session_state["gruppen"] = supabase.table("gruppen").select("*").execute().data
+                    st.success(f"Du bist jetzt Mitglied von {g['name']}.")
 
         with cols[2]:
             if g.get("owner") == username:
                 if st.button(f"❌ Löschen", key=f"delgroup_{g['name']}"):
                     supabase.table("gruppen").delete().eq("name", g["name"]).execute()
-                    reload_gruppen()
-                    st.experimental_rerun()
+                    st.session_state["gruppen"] = supabase.table("gruppen").select("*").execute().data
+                    st.success(f"Gruppe {g['name']} gelöscht.")
 
     with st.form("create_group_form"):
         new_name = st.text_input("Name der neuen Gruppe", placeholder="z. B. Team Hamburg")
@@ -226,17 +218,17 @@ if username:
                     "color": random_color()
                 }
                 supabase.table("gruppen").insert(new_group).execute()
-                reload_gruppen()
-                st.experimental_rerun()
+                st.session_state["gruppen"] = supabase.table("gruppen").select("*").execute().data
+                st.success(f"Gruppe '{new_name}' erstellt ✅")
             else:
                 st.warning("Ungültiger Name oder Gruppe existiert bereits.")
 
-# ---- Admin: Alles löschen ----
+# ---- 5) Admin: Alles löschen ----
 if username == "Admin" and supabase_admin:
     st.subheader("⚠️ Alle Daten löschen")
     if st.button("🧹 Alles löschen (Personen & Gruppen)"):
         supabase_admin.table("personen").delete().neq("name", "").execute()
         supabase_admin.table("gruppen").delete().neq("name", "").execute()
-        reload_personen()
-        reload_gruppen()
+        st.session_state["personen"] = []
+        st.session_state["gruppen"] = []
         st.success("Alle Daten wurden gelöscht ✅")
