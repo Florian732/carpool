@@ -60,9 +60,6 @@ if username:
         value=existing_person["freie_plaetze"] if existing_person else 3
     ) if "Fahrer" in role else 0
 
-    lat = st.number_input("Latitude", value=existing_person["lat"] if existing_person else 53.6)
-    lon = st.number_input("Longitude", value=existing_person["lon"] if existing_person else 9.9)
-
     if st.button("✅ Mich eintragen"):
         supabase.table("personen").upsert({
             "name": username,
