@@ -59,33 +59,31 @@ if username:
         max_value=8,
         value=existing_person["freie_plaetze"] if existing_person else 3
     ) if "Fahrer" in role else 0
-
-    if st.button("✅ Mich eintragen"):
-        supabase.table("personen").upsert({
-            "name": username,
-            "role": role,
-            "lat": lat,
-            "lon": lon,
-            "freie_plaetze": freie_plaetze
-        }).execute()
-        st.success("Dein Eintrag wurde gespeichert ✅")
 else:
     st.info("Bitte melde dich links in der Seitenleiste an.")
 
+st.info("Klicke auf die Karte, um deinen Standort zu wählen. Danach auf '✅ Mich eintragen' klicken.")
+
 # ---- 2) Map ----
-st.subheader("🗺️ Karte")
+if "last_click" not in st.session_state:
+    st.session_state["last_click"] = None
+
 personen = supabase.table("personen").select("*").execute().data
 gruppen = supabase.table("gruppen").select("*").execute().data
 
 m = folium.Map(location=[53.6, 9.9], zoom_start=8)
 
-# Marker für Personen
+# Marker für bestehende Personen
 for p in personen:
     color = "green" if "Fahrer" in p["role"] else "blue"
+    folium.Marker([p["lat"], p["lon"]], popup=f"{p['name']} ({p['role']})", icon=folium.Icon(color=color)).add_to(m)
+
+# Letzten Klick markieren
+if st.session_state["last_click"]:
     folium.Marker(
-        [p["lat"], p["lon"]],
-        popup=f"{p['name']} ({p['role']})",
-        icon=folium.Icon(color=color)
+        [st.session_state["last_click"]["lat"], st.session_state["last_click"]["lng"]],
+        popup="📍 Dein Standort",
+        icon=folium.Icon(color="red", icon="user")
     ).add_to(m)
 
 # Linien für Gruppen
@@ -118,12 +116,31 @@ if gruppen:
     """)
     m.get_root().add_child(legend)
 
-st_folium(m, width=850, height=600)
+# Map anzeigen und Klick abfangen
+map_data = st_folium(m, width=850, height=600)
+if map_data["last_clicked"]:
+    st.session_state["last_click"] = map_data["last_clicked"]
 
-# ---- 3) Gruppenverwaltung ----
+# ---- 3) Eintragen ----
+if username and st.button("✅ Mich eintragen"):
+    if not st.session_state["last_click"]:
+        st.warning("Bitte klicke zuerst auf die Karte, um deinen Standort zu wählen.")
+    else:
+        lat = st.session_state["last_click"]["lat"]
+        lon = st.session_state["last_click"]["lng"]
+        supabase.table("personen").upsert({
+            "name": username,
+            "role": role,
+            "lat": lat,
+            "lon": lon,
+            "freie_plaetze": freie_plaetze
+        }).execute()
+        st.session_state["last_click"] = None
+        st.success("Dein Eintrag wurde gespeichert ✅")
+
+# ---- 4) Gruppenverwaltung ----
 st.subheader("👥 Gruppenverwaltung")
 if username:
-    # Bestehende Gruppen anzeigen
     for g in gruppen:
         members = g.get("mitglieder", [])
         color = g.get("color", "#cccccc")
@@ -154,7 +171,6 @@ if username:
                     supabase.table("gruppen").delete().eq("name", g["name"]).execute()
                     st.success(f"Gruppe {g['name']} gelöscht.")
 
-    # Neue Gruppe erstellen
     with st.form("create_group_form"):
         new_name = st.text_input("Name der neuen Gruppe", placeholder="z. B. Team Hamburg")
         submitted = st.form_submit_button("🌈 Gruppe erstellen")
@@ -171,12 +187,10 @@ if username:
             else:
                 st.warning("Ungültiger Name oder Gruppe existiert bereits.")
 
-# ---- 4) Admin: Alles löschen ----
+# ---- 5) Admin: Alles löschen ----
 st.subheader("⚠️ Alle Daten löschen")
 if username == "Admin":
     if st.button("🧹 Alles löschen (Personen & Gruppen)"):
         supabase.table("personen").delete().neq("name", "").execute()
         supabase.table("gruppen").delete().neq("name", "").execute()
         st.success("Alle Daten wurden gelöscht ✅")
-else:
-    st.info("Nur der Admin kann alle Daten löschen.")
