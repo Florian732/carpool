@@ -64,7 +64,7 @@ if username:
     if "Fahrer" in role:
         freie_plaetze = st.number_input(
             "Wie viele Plätze hast du frei?",
-            min_value=1, max_value=8,
+            min_value=0, max_value=8,
             value=existing_person["freie_plaetze"] if existing_person else 3
         )
     else:
