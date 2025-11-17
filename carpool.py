@@ -223,8 +223,8 @@ if username:
                 st.warning("Ungültiger Name oder Gruppe existiert bereits.")
 
 # ---- 6) Admin: Alles löschen ----
-st.subheader("⚠️ Alle Daten löschen")
 if username == "Admin" and supabase_admin:
+    st.subheader("⚠️ Alle Daten löschen")
     if st.button("🧹 Alles löschen (Personen & Gruppen)"):
         supabase_admin.table("personen").delete().neq("name", "").execute()
         supabase_admin.table("gruppen").delete().neq("name", "").execute()
