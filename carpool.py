@@ -212,6 +212,23 @@ if username:
                     load_data()
                     st.success(f"Gruppe {g['name']} gelöscht.")
 
+    # Neue Gruppe erstellen
+    with st.form("create_group_form"):
+        new_name = st.text_input("Name der neuen Gruppe", placeholder="z. B. Team Hamburg")
+        submitted = st.form_submit_button("🌈 Gruppe erstellen")
+        if submitted:
+            if new_name.strip() and all(g["name"] != new_name for g in st.session_state["gruppen"]):
+                new_group = {
+                    "name": new_name.strip(),
+                    "owner": username,
+                    "mitglieder": [username],
+                    "color": random_color()
+                }
+                supabase.table("gruppen").insert(new_group).execute()
+                load_data()
+                st.success(f"Gruppe '{new_name}' erstellt ✅")
+            else:
+                st.warning("Ungültiger Name oder Gruppe existiert bereits.")
 
 # ---- Admin: Alles löschen ----
 st.subheader("⚠️ Alle Daten löschen")
