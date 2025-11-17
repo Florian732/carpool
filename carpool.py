@@ -9,6 +9,9 @@ from jinja2 import Template
 st.set_page_config(page_title="Mitfahrbörse", layout="wide")
 st.title("🚗 Mitfahrbörse")
 
+st.write("Gefundene Secrets:")
+st.write(st.secrets)
+
 # --- Supabase Verbindung ---
 url = st.secrets["supabase"]["url"]
 key = st.secrets["supabase"]["key"]
