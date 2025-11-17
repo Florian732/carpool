@@ -44,10 +44,22 @@ PALETTE = ["#FF0000","#0077FF","#00CC44","#FF9900","#9933FF",
 def random_color():
     return random.choice(PALETTE)
 
+# ---- 0) Supabase-Daten in session_state ----
+if "personen" not in st.session_state:
+    st.session_state["personen"] = supabase.table("personen").select("*").execute().data
+if "gruppen" not in st.session_state:
+    st.session_state["gruppen"] = supabase.table("gruppen").select("*").execute().data
+
+def reload_personen():
+    st.session_state["personen"] = supabase.table("personen").select("*").execute().data
+
+def reload_gruppen():
+    st.session_state["gruppen"] = supabase.table("gruppen").select("*").execute().data
+
 # ---- 1) Teilnahmeformular ----
 st.subheader("👤 Deine Teilnahme")
 if username:
-    existing_person = supabase.table("personen").select("*").eq("name", username).execute().data
+    existing_person = [p for p in st.session_state["personen"] if p["name"] == username]
     existing_person = existing_person[0] if existing_person else None
     role_default = existing_person["role"] if existing_person else "Mitfahrer (suche Platz)"
     
@@ -72,13 +84,10 @@ st.info("Klicke auf die Karte, um deinen Standort zu wählen. Danach auf '✅ Mi
 if "last_click" not in st.session_state:
     st.session_state["last_click"] = None
 
-personen = supabase.table("personen").select("*").execute().data
-gruppen = supabase.table("gruppen").select("*").execute().data
-
 m = folium.Map(location=[53.6, 9.9], zoom_start=8)
 
 # Marker für bestehende Personen
-for p in personen:
+for p in st.session_state["personen"]:
     color = "green" if "Fahrer" in p["role"] else "blue"
     folium.Marker([p["lat"], p["lon"]], popup=f"{p['name']} ({p['role']})", icon=folium.Icon(color=color)).add_to(m)
 
@@ -92,15 +101,15 @@ if st.session_state["last_click"]:
 
 # Linien für Gruppen
 legende_html = "<b>🎨 Fahrgemeinschaften</b><br>"
-for g in gruppen:
+for g in st.session_state["gruppen"]:
     color = g.get("color", random_color())
-    members = [p for p in personen if p["name"] in g.get("mitglieder", [])]
+    members = [p for p in st.session_state["personen"] if p["name"] in g.get("mitglieder", [])]
     coords = [(p["lat"], p["lon"]) for p in members]
     if len(coords) > 1:
         folium.PolyLine(coords, color=color, weight=5, opacity=0.8, tooltip=g["name"]).add_to(m)
         legende_html += f'<i style="background:{color};width:18px;height:18px;border-radius:4px;display:inline-block;margin-right:5px;"></i>{g["name"]}<br>'
 
-if gruppen:
+if st.session_state["gruppen"]:
     legend = MacroElement()
     legend._template = Template(f"""
         <div style="
@@ -139,17 +148,13 @@ if username and st.button("✅ Mich eintragen"):
             "lon": lon,
             "freie_plaetze": freie_plaetze
         }).execute()
+        reload_personen()
         st.session_state["last_click"] = None
         st.success("Dein Eintrag wurde gespeichert ✅")
 
-# ---- 4) Personenübersicht ----
-def reload_personen():
-    return supabase.table("personen").select("*").execute().data
-
-personen = reload_personen()
-st.subheader("👥 Eingetragene Teilnehmer")
-
-for p in personen:
+# ---- Personenübersicht ----
+st.subheader("👥 Übersicht Teilnehmer")
+for p in st.session_state["personen"]:
     role_icon = "🚗" if "Fahrer" in p["role"] else "🧍"
     color_bg = "#d1f0ff" if "Fahrer" in p["role"] else "#f2f2f2"
     freie_text = f"<br>Freie Plätze: {p['freie_plaetze']}" if "Fahrer" in p["role"] else ""
@@ -170,13 +175,13 @@ for p in personen:
         if username == p["name"]:
             if st.button("🗑️ Löschen", key=f"del_{p['name']}"):
                 supabase.table("personen").delete().eq("name", username).execute()
-                st.success("Dein Eintrag wurde gelöscht ✅")
-                personen = reload_personen()  # sofort neu laden
+                reload_personen()
+                st.experimental_rerun()
 
-# ---- 5) Gruppenverwaltung ----
+# ---- Gruppenverwaltung ----
 st.subheader("👥 Gruppenverwaltung")
 if username:
-    for g in gruppen:
+    for g in st.session_state["gruppen"]:
         members = g.get("mitglieder", [])
         color = g.get("color", "#cccccc")
         cols = st.columns([6, 1, 1])
@@ -193,24 +198,27 @@ if username:
                 if st.button(f"🚪 Verlassen", key=f"leave_{g['name']}"):
                     members.remove(username)
                     supabase.table("gruppen").update({"mitglieder": members}).eq("name", g["name"]).execute()
-                    st.success(f"Du hast die Gruppe {g['name']} verlassen.")
+                    reload_gruppen()
+                    st.experimental_rerun()
             else:
                 if st.button(f"➕ Beitreten", key=f"join_{g['name']}"):
                     members.append(username)
                     supabase.table("gruppen").update({"mitglieder": members}).eq("name", g["name"]).execute()
-                    st.success(f"Du bist jetzt Mitglied von {g['name']}.")
+                    reload_gruppen()
+                    st.experimental_rerun()
 
         with cols[2]:
             if g.get("owner") == username:
                 if st.button(f"❌ Löschen", key=f"delgroup_{g['name']}"):
                     supabase.table("gruppen").delete().eq("name", g["name"]).execute()
-                    st.success(f"Gruppe {g['name']} gelöscht.")
+                    reload_gruppen()
+                    st.experimental_rerun()
 
     with st.form("create_group_form"):
         new_name = st.text_input("Name der neuen Gruppe", placeholder="z. B. Team Hamburg")
         submitted = st.form_submit_button("🌈 Gruppe erstellen")
         if submitted:
-            if new_name.strip() and all(g["name"] != new_name for g in gruppen):
+            if new_name.strip() and all(g["name"] != new_name for g in st.session_state["gruppen"]):
                 new_group = {
                     "name": new_name.strip(),
                     "owner": username,
@@ -218,14 +226,17 @@ if username:
                     "color": random_color()
                 }
                 supabase.table("gruppen").insert(new_group).execute()
-                st.success(f"Gruppe '{new_name}' erstellt ✅")
+                reload_gruppen()
+                st.experimental_rerun()
             else:
                 st.warning("Ungültiger Name oder Gruppe existiert bereits.")
 
-# ---- 6) Admin: Alles löschen ----
+# ---- Admin: Alles löschen ----
 if username == "Admin" and supabase_admin:
     st.subheader("⚠️ Alle Daten löschen")
     if st.button("🧹 Alles löschen (Personen & Gruppen)"):
         supabase_admin.table("personen").delete().neq("name", "").execute()
         supabase_admin.table("gruppen").delete().neq("name", "").execute()
+        reload_personen()
+        reload_gruppen()
         st.success("Alle Daten wurden gelöscht ✅")
