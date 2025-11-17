@@ -17,6 +17,9 @@ url = st.secrets["supabase"]["url"]
 key = st.secrets["supabase"]["key"]
 supabase: Client = create_client(url, key)
 
+st.write(st.secrets)
+
+
 service_key = st.secrets.get("supabase_admin", {}).get("service_role_key")
 supabase_admin: Client = create_client(url, service_key) if service_key else None
 
