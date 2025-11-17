@@ -142,6 +142,34 @@ if username and st.button("✅ Mich eintragen"):
         st.session_state["last_click"] = None
         st.success("Dein Eintrag wurde gespeichert ✅")
 
+# ---- Personenübersicht ----
+personen = supabase.table("personen").select("*").execute().data
+
+for p in personen:
+    role_icon = "🚗" if "Fahrer" in p["role"] else "🧍"
+    color_bg = "#d1f0ff" if "Fahrer" in p["role"] else "#f2f2f2"
+    freie_text = f"<br>Freie Plätze: {p['freie_plaetze']}" if "Fahrer" in p["role"] else ""
+
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        st.markdown(
+            f"""
+            <div style='background-color:{color_bg}; padding:10px; border-radius:8px; margin-bottom:6px;'>
+              <b>{role_icon} {p['name']}</b><br>
+              <small>{p['role']}</small><br>
+              {freie_text}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    with col2:
+        # Nur eigener Benutzer kann löschen
+        if username == p["name"]:
+            if st.button("🗑️ Löschen", key=f"del_{p['name']}"):
+                supabase.table("personen").delete().eq("name", username).execute()
+                st.experimental_rerun()
+
+
 # ---- 4) Gruppenverwaltung ----
 st.subheader("👥 Gruppenverwaltung")
 if username:
