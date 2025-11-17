@@ -6,13 +6,17 @@ import random
 from branca.element import MacroElement
 from jinja2 import Template
 
-st.set_page_config(page_title="Mitfahrbörse", layout="wide")
+st.set_page_config(page_title="🚗 Mitfahrbörse", layout="wide")
 st.title("🚗 Mitfahrbörse")
 
 # --- Supabase Verbindung ---
 url = st.secrets["supabase"]["url"]
 key = st.secrets["supabase"]["key"]
 supabase: Client = create_client(url, key)
+
+# Optional: Admin / service_role Key
+service_key = st.secrets.get("supabase_admin", {}).get("service_role_key")
+supabase_admin: Client = create_client(url, service_key) if service_key else None
 
 # ---- Passwortlose Anmeldung ----
 st.sidebar.header("🔐 Anmeldung")
@@ -124,7 +128,7 @@ if map_data["last_clicked"]:
 # ---- 3) Eintragen ----
 if username and st.button("✅ Mich eintragen"):
     if not st.session_state["last_click"]:
-        st.warning("Bitte klicke zuerst auf die Karte, um deinen Standort zu wählen.")
+        st.warning("Bitte zuerst auf die Karte klicken.")
     else:
         lat = st.session_state["last_click"]["lat"]
         lon = st.session_state["last_click"]["lng"]
@@ -189,8 +193,8 @@ if username:
 
 # ---- 5) Admin: Alles löschen ----
 st.subheader("⚠️ Alle Daten löschen")
-if username == "Admin":
+if username == "Admin" and supabase_admin:
     if st.button("🧹 Alles löschen (Personen & Gruppen)"):
-        supabase.table("personen").delete().neq("name", "").execute()
-        supabase.table("gruppen").delete().neq("name", "").execute()
+        supabase_admin.table("personen").delete().neq("name", "").execute()
+        supabase_admin.table("gruppen").delete().neq("name", "").execute()
         st.success("Alle Daten wurden gelöscht ✅")
