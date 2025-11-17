@@ -316,5 +316,3 @@ if st.session_state.get("user") == "Admin":
         clear_data()
         st.session_state.clear()
         st.success("Alle Daten wurden gelöscht ✅")
-else:
-    st.info("Nur der Admin kann alle Daten löschen.")
