@@ -306,11 +306,12 @@ else:
     st.info("Noch keine Gruppen vorhanden.")
 
 # ---- 7) Alles löschen ----
-st.markdown("---")
-st.subheader("⚠️ Alle Daten löschen")
 
 # Nur Admin darf alles löschen
 if st.session_state.get("user") == "Admin":
+    st.markdown("---")
+    st.subheader("⚠️ Alle Daten löschen")
+
     if st.button("🧹 Alles löschen (Personen & Gruppen)"):
         clear_data()
         st.session_state.clear()
