@@ -143,32 +143,6 @@ if username and st.button("✅ Mich eintragen"):
 
 # ---- Personenübersicht ----
 st.subheader("👥 Übersicht Teilnehmer")
-for p in st.session_state["personen"]:
-    role_icon = "🚗" if "Fahrer" in p["role"] else "🧍"
-    color_bg = "#d1f0ff" if "Fahrer" in p["role"] else "#f2f2f2"
-    freie_text = f"<br>Freie Plätze: {p['freie_plaetze']}" if "Fahrer" in p["role"] else ""
-
-    col1, col2 = st.columns([4, 1])
-    with col1:
-        st.markdown(
-            f"""
-            <div style='background-color:{color_bg}; padding:10px; border-radius:8px; margin-bottom:6px;'>
-              <b>{role_icon} {p['name']}</b><br>
-              <small>{p['role']}</small><br>
-              {freie_text}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-    with col2:
-        if username == p["name"]:
-            if st.button("🗑️ Löschen", key=f"del_{p['name']}"):
-                supabase.table("personen").delete().eq("name", username).execute()
-                load_data()
-                st.success("Eintrag gelöscht ✅")  # sofort sichtbar, ohne rerun
-
-# ---- Personenübersicht ----
-st.subheader("👥 Übersicht Teilnehmer")
 if username:
     personen_copy = st.session_state["personen"].copy()
     for p in personen_copy:
@@ -261,6 +235,7 @@ if username:
                 st.success(f"Gruppe '{new_name}' erstellt ✅")
             else:
                 st.warning("Ungültiger Name oder Gruppe existiert bereits.")
+
 
 # ---- Admin: Alles löschen ----
 st.subheader("⚠️ Alle Daten löschen")
