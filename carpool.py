@@ -196,20 +196,22 @@ if username:
                 if st.button(f"🚪 Verlassen", key=f"leave_{g['name']}"):
                     members.remove(username)
                     supabase.table("gruppen").update({"mitglieder": members}).eq("name", g["name"]).execute()
-                    load_data()
+                    # Direkt Session-State updaten
+                    g["mitglieder"] = members
                     st.success(f"Du hast die Gruppe {g['name']} verlassen.")
             else:
                 if st.button(f"➕ Beitreten", key=f"join_{g['name']}"):
                     members.append(username)
                     supabase.table("gruppen").update({"mitglieder": members}).eq("name", g["name"]).execute()
-                    load_data()
+                    g["mitglieder"] = members
                     st.success(f"Du bist jetzt Mitglied von {g['name']}.")
 
         with cols[2]:
             if g.get("owner") == username:
                 if st.button(f"❌ Löschen", key=f"delgroup_{g['name']}"):
                     supabase.table("gruppen").delete().eq("name", g["name"]).execute()
-                    load_data()
+                    # Session-State löschen
+                    st.session_state["gruppen"] = [x for x in st.session_state["gruppen"] if x["name"] != g["name"]]
                     st.success(f"Gruppe {g['name']} gelöscht.")
 
     # Neue Gruppe erstellen
@@ -225,7 +227,8 @@ if username:
                     "color": random_color()
                 }
                 supabase.table("gruppen").insert(new_group).execute()
-                load_data()
+                # Direkt Session-State updaten
+                st.session_state["gruppen"].append(new_group)
                 st.success(f"Gruppe '{new_name}' erstellt ✅")
             else:
                 st.warning("Ungültiger Name oder Gruppe existiert bereits.")
